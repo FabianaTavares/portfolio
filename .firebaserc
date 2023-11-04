@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "projetos-angular-fabi"
+  },
+  "targets": {
+    "projetos-angular-fabi": {
+      "hosting": {
+        "portfolio-fabi": [
+          "projetos-angular-fabi"
+        ]
+      }
+    }
+  }
+}
