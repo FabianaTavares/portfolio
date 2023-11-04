@@ -43,6 +43,6 @@ jobs:
     - name: Gera o CHANGELOG
       run: |
         npm ci
-        git checkout main
+        git checkout develop
         npm run release
-        git push origin main --follow-tags
+        git push origin develop --follow-tags
