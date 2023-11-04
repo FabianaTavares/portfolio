@@ -4,6 +4,7 @@ name: Build
 on:
   push:
     branches:
+      - main
       - develop
       - release-*
       - feature-*
@@ -13,6 +14,7 @@ on:
       - develop
       - release-*
       - feature-*
+    types: [opened, synchronize, reopened]
 jobs:
   build:
     # só deixa executar se o último commit não conter 'skip ci' na mensagem
@@ -21,28 +23,83 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
+      - name: Checkout Git Repo
+        uses: actions/checkout@v3
 
-    # configura o GITHUB_TOKEN
-    # https://help.github.com/en/actions/automating-your-workflow-with-github-actions/authenticating-with-the-github_token
-    - name: Configura o GitHub token
-      uses: fregante/setup-git-token@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        name: "Gerador de changelog"
-        email: "changelog@users.noreply.github.com"
+      - name: Configura o GitHub token
+        uses: fregante/setup-git-token@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Gerador de changelog"
+          email: "changelog@users.noreply.github.com"
 
-    # instala a versão 11.x do Node.js
-    - name: Instala o Node.js 14.x
-      uses: actions/setup-node@v1
-      with:
-        node-version: 14.x
+      # instala a versão 11.x do Node.js
+      - name: Instala o Node.js 14.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
 
-    # instala as dependências, vai para a master
-    # executa o standard-version, e envia o commit e tag
-    - name: Gera o CHANGELOG
-      run: |
-        npm ci
-        git checkout develop
-        npm run release
-        git push origin develop --follow-tags
+      # instala as dependências, vai para a master
+      # executa o standard-version, e envia o commit e tag
+      - name: Gera o CHANGELOG
+        run: |
+          npm ci
+          git checkout develop
+          npm run release
+          git push origin develop --follow-tags
+
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Git Repo
+        uses: actions/checkout@v3
+
+      # instala a versão 16.x do Node.js
+      - name: Instala o Node.js 16.20.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.20.0
+
+      - name: npm install, build
+        run: |
+          npm install
+          npm run build
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROJETOS_ANGULAR_FABI }}'
+          channelId: live
+          projectId: projetos-angular-fabi
+
+  build_and_preview:
+    if: '${{ github.event.pull_request.head.repo.full_name == github.repository }}'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+       # instala a versão 16.x do Node.js
+      - name: Instala o Node.js 16.20.0
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.20.0
+
+      - run: npm ci && npm run build
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PROJETOS_ANGULAR_FABI }}'
+          projectId: projetos-angular-fabi
+
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
