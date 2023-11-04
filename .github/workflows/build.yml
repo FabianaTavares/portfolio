@@ -1,4 +1,4 @@
-name: Biuld
+name: Build
 
 # só executa no push de commit da branch master
 on:
